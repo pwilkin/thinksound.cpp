@@ -1,0 +1,7 @@
+build/
+.cache/
+.claude/
+*.o
+*.a
+*.so
+*.wav
