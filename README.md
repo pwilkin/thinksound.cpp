@@ -59,6 +59,12 @@ cmake --build build -j
 `CMakeLists.txt` points at the GGML libraries under `/devel/tools/llama.cpp/build/bin`. Adjust
 `GGML_DIR` / the library path there if your llama.cpp lives elsewhere.
 
+### Pre-built GGUFs
+
+Skip conversion — download from [`ilintar/thinksound-gguf`](https://huggingface.co/ilintar/thinksound-gguf)
+(`bf16` / `f32` / `q8` DiT + T5, MetaCLIP, VAE, and the tokenizers) and point `ts-generate` /
+`ts-server` `--dir` at the folder.
+
 ### 2. Convert weights to GGUF (one-time)
 
 From the official checkpoints (`thinksound_light.ckpt`, `vae.ckpt`) plus the T5 / MetaCLIP encoders:
