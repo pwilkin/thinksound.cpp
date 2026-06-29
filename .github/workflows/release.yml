@@ -48,11 +48,21 @@ jobs:
         with:
           key: ${{ matrix.os }}-${{ matrix.backend }}
 
-      - name: Vulkan SDK
-        if: matrix.backend == 'vulkan'
+      # Linux: the minimal SDK is enough (runner provides spirv-headers).
+      - name: Vulkan SDK (Linux)
+        if: matrix.backend == 'vulkan' && matrix.os == 'linux'
         uses: humbletim/install-vulkan-sdk@v1.2
         with:
           version: 1.4.309.0
+          cache: true
+      # Windows: ggml-vulkan needs the full SDK (SPIRV-Headers/-Tools CMake configs),
+      # which the minimal install lacks.
+      - name: Vulkan SDK (Windows)
+        if: matrix.backend == 'vulkan' && matrix.os == 'windows'
+        uses: jakoch/install-vulkan-sdk-action@v1
+        with:
+          vulkan_version: 1.4.309.0
+          install_runtime: true
           cache: true
 
       - name: CUDA toolkit
