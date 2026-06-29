@@ -8,34 +8,24 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-# ---- GGML: link against the prebuilt llama.cpp tree (commit 911b67a60) ----
-set(GGML_DIR "/devel/tools/llama.cpp" CACHE PATH "llama.cpp/ggml source tree")
-set(GGML_BUILD "${GGML_DIR}/build" CACHE PATH "prebuilt ggml build dir (CUDA)")
-set(GGML_LIBDIR "${GGML_BUILD}/bin")
+# ---- GGML: vendored as a submodule, built in-tree. The backend is chosen at
+# configure time with the upstream flags (-DGGML_CUDA=ON / -DGGML_VULKAN=ON);
+# the corresponding ggml-<backend> target then exists and we link it. ----
+# Colocate ggml's shared libs with our executables so ggml_backend_load_all()
+# finds the backends at runtime (ggml otherwise puts .so under bin/).
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
-option(TS_CUDA "link the ggml CUDA backend" ON)
+add_subdirectory(third_party/ggml)
 
-include_directories(${GGML_DIR}/ggml/include)
-
-find_library(GGML_LIB        ggml        PATHS ${GGML_LIBDIR} REQUIRED)
-find_library(GGML_BASE_LIB   ggml-base   PATHS ${GGML_LIBDIR} REQUIRED)
-find_library(GGML_CPU_LIB    ggml-cpu    PATHS ${GGML_LIBDIR} REQUIRED)
-set(TS_GGML_LIBS ${GGML_LIB} ${GGML_BASE_LIB} ${GGML_CPU_LIB})
-if(TS_CUDA)
-  find_library(GGML_CUDA_LIB ggml-cuda PATHS ${GGML_LIBDIR})
-  if(GGML_CUDA_LIB)
-    list(APPEND TS_GGML_LIBS ${GGML_CUDA_LIB})
-    add_compile_definitions(TS_HAVE_CUDA=1)
-  endif()
+set(TS_GGML_LIBS ggml ggml-base ggml-cpu)
+if(TARGET ggml-cuda)
+  list(APPEND TS_GGML_LIBS ggml-cuda)
+  add_compile_definitions(TS_HAVE_CUDA=1)
 endif()
-
-option(TS_VULKAN "link the ggml Vulkan backend" ON)
-if(TS_VULKAN)
-  find_library(GGML_VULKAN_LIB ggml-vulkan PATHS ${GGML_LIBDIR})
-  if(GGML_VULKAN_LIB)
-    list(APPEND TS_GGML_LIBS ${GGML_VULKAN_LIB})
-    add_compile_definitions(TS_HAVE_VULKAN=1)
-  endif()
+if(TARGET ggml-vulkan)
+  list(APPEND TS_GGML_LIBS ggml-vulkan)
+  add_compile_definitions(TS_HAVE_VULKAN=1)
 endif()
 
 # common static lib (loader, wav io, helpers, model graphs)
@@ -51,9 +41,9 @@ add_library(ts_common STATIC
 target_include_directories(ts_common PUBLIC src)
 target_link_libraries(ts_common PUBLIC ${TS_GGML_LIBS})
 
-# RPATH so the prebuilt .so files are found at runtime
-set(CMAKE_BUILD_RPATH "${GGML_LIBDIR}")
-set(CMAKE_INSTALL_RPATH "${GGML_LIBDIR}")
+# Relocatable: find the colocated ggml .so next to the binary.
+set(CMAKE_BUILD_RPATH "$ORIGIN")
+set(CMAKE_INSTALL_RPATH "$ORIGIN")
 
 # ---- tools ----
 add_executable(ts-gguf-dump src/tools/gguf_dump.cpp)
