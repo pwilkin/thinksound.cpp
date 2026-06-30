@@ -64,6 +64,19 @@ jobs:
           vulkan_version: 1.4.309.0
           install_runtime: true
           cache: true
+      # ggml-vulkan does find_package(SPIRV-Headers CONFIG REQUIRED) for its shader
+      # generator; the Windows SDK doesn't ship that CMake config where CMake looks,
+      # so build+install it and hand the prefix to the configure step.
+      - name: SPIRV-Headers (Windows Vulkan)
+        if: matrix.backend == 'vulkan' && matrix.os == 'windows'
+        shell: bash
+        run: |
+          set -e
+          git clone --depth 1 --branch vulkan-sdk-1.4.309.0 https://github.com/KhronosGroup/SPIRV-Headers \
+            || git clone --depth 1 https://github.com/KhronosGroup/SPIRV-Headers
+          cmake -S SPIRV-Headers -B SPIRV-Headers/build -DCMAKE_INSTALL_PREFIX="$PWD/spirv-headers-install"
+          cmake --build SPIRV-Headers/build --target install --config Release
+          echo "SPIRV_HEADERS_ROOT=$(cygpath -m "$PWD/spirv-headers-install")" >> "$GITHUB_ENV"
 
       - name: CUDA toolkit
         if: matrix.backend == 'cuda'
@@ -115,7 +128,7 @@ jobs:
             cuda)   FLAGS="-DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=75;80;86;89;90" ;;
             rocm)   FLAGS="-DGGML_HIP=ON -DGPU_TARGETS=gfx1151 -DCMAKE_C_COMPILER=/opt/rocm/llvm/bin/clang -DCMAKE_CXX_COMPILER=/opt/rocm/llvm/bin/clang++" ;;
           esac
-          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release $FLAGS
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release $FLAGS ${SPIRV_HEADERS_ROOT:+-DCMAKE_PREFIX_PATH=$SPIRV_HEADERS_ROOT}
           cmake --build build --target ts-server -j
 
       - name: Package
