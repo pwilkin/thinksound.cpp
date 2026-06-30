@@ -27,6 +27,10 @@ if(TARGET ggml-vulkan)
   list(APPEND TS_GGML_LIBS ggml-vulkan)
   add_compile_definitions(TS_HAVE_VULKAN=1)
 endif()
+if(TARGET ggml-hip)
+  list(APPEND TS_GGML_LIBS ggml-hip)
+  add_compile_definitions(TS_HAVE_HIP=1)
+endif()
 
 # common static lib (loader, wav io, helpers, model graphs)
 add_library(ts_common STATIC
